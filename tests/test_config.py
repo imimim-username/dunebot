@@ -18,11 +18,13 @@ class TestSettings:
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token-123")
         monkeypatch.setenv("DUNE_API_KEY", "test-dune-key-456")
         
-        settings = Settings.from_env()
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
         
         assert settings.discord_bot_token == "test-token-123"
         assert settings.dune_api_key == "test-dune-key-456"
         assert settings.discord_guild_id is None
+        assert settings.embed_delay_seconds == 10  # Default value
     
     def test_from_env_with_optional_guild_id(self, monkeypatch):
         """Test loading settings with optional guild ID."""
@@ -30,25 +32,70 @@ class TestSettings:
         monkeypatch.setenv("DUNE_API_KEY", "test-key")
         monkeypatch.setenv("DISCORD_GUILD_ID", "123456789")
         
-        settings = Settings.from_env()
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
         
         assert settings.discord_guild_id == 123456789
+    
+    def test_from_env_with_embed_delay(self, monkeypatch):
+        """Test loading settings with custom embed delay."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("EMBED_DELAY_SECONDS", "5")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
+        
+        assert settings.embed_delay_seconds == 5
+    
+    def test_from_env_embed_delay_default(self, monkeypatch):
+        """Test that embed delay defaults to 10 if not set."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.delenv("EMBED_DELAY_SECONDS", raising=False)
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
+        
+        assert settings.embed_delay_seconds == 10
+    
+    def test_from_env_embed_delay_invalid(self, monkeypatch):
+        """Test that invalid embed delay raises ValueError."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("EMBED_DELAY_SECONDS", "invalid")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        with pytest.raises(ValueError, match="EMBED_DELAY_SECONDS"):
+            Settings.from_env("/nonexistent/.env")
+    
+    def test_from_env_embed_delay_negative(self, monkeypatch):
+        """Test that negative embed delay raises ValueError."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("EMBED_DELAY_SECONDS", "-1")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        with pytest.raises(ValueError, match="EMBED_DELAY_SECONDS"):
+            Settings.from_env("/nonexistent/.env")
     
     def test_from_env_missing_discord_token(self, monkeypatch):
         """Test that missing DISCORD_BOT_TOKEN raises ValueError."""
         monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
         monkeypatch.setenv("DUNE_API_KEY", "test-key")
         
+        # Use a non-existent .env file path to avoid loading real .env
         with pytest.raises(ValueError, match="DISCORD_BOT_TOKEN"):
-            Settings.from_env()
+            Settings.from_env("/nonexistent/.env")
     
     def test_from_env_missing_dune_key(self, monkeypatch):
         """Test that missing DUNE_API_KEY raises ValueError."""
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
         monkeypatch.delenv("DUNE_API_KEY", raising=False)
         
+        # Use a non-existent .env file path to avoid loading real .env
         with pytest.raises(ValueError, match="DUNE_API_KEY"):
-            Settings.from_env()
+            Settings.from_env("/nonexistent/.env")
     
     def test_from_env_with_dotenv_file(self, monkeypatch):
         """Test loading from a .env file."""
@@ -98,7 +145,8 @@ class TestQueryLoading:
             yaml_path = f.name
         
         try:
-            settings = Settings.from_env()
+            # Use a non-existent .env file path to avoid loading real .env
+            settings = Settings.from_env("/nonexistent/.env")
             settings.load_queries(yaml_path)
             
             assert len(settings.queries) == 2
@@ -121,7 +169,8 @@ class TestQueryLoading:
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
         monkeypatch.setenv("DUNE_API_KEY", "test-key")
         
-        settings = Settings.from_env()
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
         settings.load_queries("/nonexistent/path/queries.yaml")
         
         assert settings.queries == {}
@@ -136,7 +185,8 @@ class TestQueryLoading:
             yaml_path = f.name
         
         try:
-            settings = Settings.from_env()
+            # Use a non-existent .env file path to avoid loading real .env
+            settings = Settings.from_env("/nonexistent/.env")
             settings.load_queries(yaml_path)
             assert settings.queries == {}
         finally:
@@ -147,7 +197,8 @@ class TestQueryLoading:
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
         monkeypatch.setenv("DUNE_API_KEY", "test-key")
         
-        settings = Settings.from_env()
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
         
         assert settings.get_query_by_name("nonexistent") is None
 
@@ -201,11 +252,13 @@ class TestLoadSettings:
             yaml_path = f.name
         
         try:
-            settings = load_settings(queries_path=yaml_path)
+            # Use a non-existent .env file path to avoid loading real .env
+            settings = load_settings(env_path="/nonexistent/.env", queries_path=yaml_path)
             
             assert settings.discord_bot_token == "test-token"
             assert settings.dune_api_key == "test-key"
             assert "test_query" in settings.queries
         finally:
             os.unlink(yaml_path)
+
 

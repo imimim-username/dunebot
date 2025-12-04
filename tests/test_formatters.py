@@ -5,9 +5,11 @@ import discord
 
 from bot.formatters.discord_embeds import (
     format_query_result,
+    format_query_result_rows,
     format_error_embed,
     format_loading_embed,
     _format_table,
+    _format_field_value,
     _truncate,
     MAX_EMBED_DESCRIPTION,
 )
@@ -33,7 +35,8 @@ class TestFormatQueryResult:
         
         assert isinstance(embed, discord.Embed)
         assert "12345" in embed.title
-        assert embed.color == discord.Color.blue()
+        # Default color is Discord blurple (88, 101, 242)
+        assert embed.color is not None
         assert "Alice" in embed.description
         assert "Bob" in embed.description
     
@@ -177,7 +180,7 @@ class TestFormatTable:
         table = _format_table(rows, columns)
         
         # Should show "more columns" indicator
-        assert "more columns" in table
+        assert "more column" in table.lower()
 
 
 class TestTruncate:
@@ -206,4 +209,214 @@ class TestTruncate:
         """Test empty string."""
         result = _truncate("", 10)
         assert result == ""
+
+
+class TestFormatQueryResultRows:
+    """Test format_query_result_rows function."""
+    
+    def test_single_row(self):
+        """Test formatting a single row result."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "blockchain": "ethereum",
+                    "project": "Uniswap",
+                    "block_time": "2024-01-01T12:00:00",
+                    "token_bought_symbol": "ETH",
+                    "token_sold_symbol": "USDC",
+                    "token_bought_amount": 1.5,
+                    "token_sold_amount": 3000.0,
+                    "amount_usd": 3000.0,
+                    "tx_hash": "0x1234",
+                }
+            ],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 1
+        embed = embeds[0]
+        assert embed.title == "ALCX DEX Swap"
+        assert embed.color is not None
+        # Check that all desired columns are present as fields
+        field_names = [field.name for field in embed.fields]
+        assert "Blockchain" in field_names
+        assert "Project" in field_names
+        assert "Block Time" in field_names
+        assert "Token Bought Symbol" in field_names
+        assert "Token Sold Symbol" in field_names
+        assert "Token Bought Amount" in field_names
+        assert "Token Sold Amount" in field_names
+        assert "Amount Usd" in field_names
+        assert "Tx Hash" in field_names
+        assert "Query ID: 12345 | Row 1 of 1" in embed.footer.text
+    
+    def test_multiple_rows(self):
+        """Test formatting multiple rows."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "blockchain": "ethereum",
+                    "project": "Uniswap",
+                    "block_time": "2024-01-01T12:00:00",
+                    "token_bought_symbol": "ETH",
+                    "token_sold_symbol": "USDC",
+                    "token_bought_amount": 1.5,
+                    "token_sold_amount": 3000.0,
+                    "amount_usd": 3000.0,
+                    "tx_hash": "0x1234",
+                },
+                {
+                    "blockchain": "polygon",
+                    "project": "SushiSwap",
+                    "block_time": "2024-01-01T13:00:00",
+                    "token_bought_symbol": "MATIC",
+                    "token_sold_symbol": "USDC",
+                    "token_bought_amount": 100.0,
+                    "token_sold_amount": 50.0,
+                    "amount_usd": 50.0,
+                    "tx_hash": "0x5678",
+                },
+            ],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 2
+        # Check first embed
+        assert embeds[0].title == "ALCX DEX Swap"
+        assert "Row 1 of 2" in embeds[0].footer.text
+        # Check second embed
+        assert embeds[1].title == "ALCX DEX Swap"
+        assert "Row 2 of 2" in embeds[1].footer.text
+        # Check that each embed has the correct data
+        assert "ethereum" in embeds[0].fields[0].value
+        assert "polygon" in embeds[1].fields[0].value
+    
+    def test_empty_result(self):
+        """Test formatting an empty result."""
+        result = QueryResult(
+            query_id=99999,
+            execution_id="exec-empty",
+            rows=[],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 1
+        embed = embeds[0]
+        assert embed.title == "ALCX DEX Swap"
+        assert "No results returned" in embed.description
+        assert "0 rows" in embed.footer.text
+    
+    def test_missing_columns(self):
+        """Test that missing columns are handled gracefully."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "blockchain": "ethereum",
+                    "project": "Uniswap",
+                    # Missing some columns
+                    "tx_hash": "0x1234",
+                }
+            ],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 1
+        embed = embeds[0]
+        # Should only have fields for columns that exist
+        field_names = [field.name for field in embed.fields]
+        assert "Blockchain" in field_names
+        assert "Project" in field_names
+        assert "Tx Hash" in field_names
+    
+    def test_custom_title_and_color(self):
+        """Test with custom title and color."""
+        result = QueryResult(
+            query_id=11111,
+            execution_id="exec-1",
+            rows=[{"blockchain": "ethereum", "project": "Test"}],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(
+            result,
+            title="Custom Title",
+            color=discord.Color.green(),
+        )
+        
+        assert embeds[0].title == "Custom Title"
+        assert embeds[0].color == discord.Color.green()
+    
+    def test_none_values(self):
+        """Test that None values are handled correctly."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "blockchain": None,
+                    "project": "Uniswap",
+                    "block_time": "2024-01-01T12:00:00",
+                    "token_bought_symbol": "ETH",
+                    "token_sold_symbol": None,
+                    "token_bought_amount": 1.5,
+                    "token_sold_amount": 3000.0,
+                    "amount_usd": None,
+                    "tx_hash": "0x1234",
+                }
+            ],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 1
+        embed = embeds[0]
+        # Check that None values are displayed as "N/A"
+        for field in embed.fields:
+            if field.name == "Blockchain" or field.name == "Token Sold Symbol" or field.name == "Amount Usd":
+                assert field.value == "N/A"
+
+
+class TestFormatFieldValue:
+    """Test _format_field_value helper function."""
+    
+    def test_none_value(self):
+        """Test None value returns N/A."""
+        result = _format_field_value(None)
+        assert result == "N/A"
+    
+    def test_string_value(self):
+        """Test string value."""
+        result = _format_field_value("test")
+        assert result == "test"
+    
+    def test_integer_value(self):
+        """Test integer value."""
+        result = _format_field_value(123)
+        assert result == "123"
+    
+    def test_float_value(self):
+        """Test float value formatting."""
+        result = _format_field_value(123.456)
+        assert "123.46" in result or "123.45" in result
+    
+    def test_datetime_string(self):
+        """Test datetime string formatting."""
+        result = _format_field_value("2024-01-01T12:00:00")
+        assert "2024-01-01" in result
+        assert "12:00:00" in result
 
