@@ -68,7 +68,23 @@ Still in the **"Bot"** tab:
 
 ---
 
-## Step 6: Get Your Server ID (Optional, but Recommended)
+## Step 6: Get Your Channel ID (For Scheduled Mode)
+
+If you plan to use scheduled query execution, you'll need the channel ID where results should be posted.
+
+### Enable Developer Mode
+
+1. Open Discord → **User Settings** (gear icon)
+2. Go to **"Advanced"**
+3. Enable **"Developer Mode"**
+
+### Get Channel ID
+
+1. Right-click on the Discord channel where you want results posted
+2. Click **"Copy Channel ID"**
+3. Save this ID for Step 7
+
+## Step 7: Get Your Server ID (Optional, but Recommended)
 
 Setting a Server ID enables instant command syncing during development (otherwise it can take up to an hour).
 
@@ -86,7 +102,7 @@ Setting a Server ID enables instant command syncing during development (otherwis
 
 ---
 
-## Step 7: Configure the Application
+## Step 8: Configure the Application
 
 1. In your project directory, create a `.env` file for your secrets:
    ```bash
@@ -108,6 +124,14 @@ Setting a Server ID enables instant command syncing during development (otherwis
 
    # Required: Your Dune API key
    DUNE_API_KEY=your-dune-api-key-here
+
+   # Optional: Delay in seconds between sending embeds (default: 10)
+   EMBED_DELAY_SECONDS=10
+
+   # Optional: Scheduled execution settings (for scheduled mode)
+   # SCHEDULED_QUERY_ID=1234567
+   # SCHEDULED_EXECUTION_TIME=14:30  # HH:MM format (24-hour)
+   # DISCORD_CHANNEL_ID=999999999999999999  # Channel ID for scheduled results
    ```
 
    **Example:**
@@ -121,7 +145,7 @@ Setting a Server ID enables instant command syncing during development (otherwis
 
 ---
 
-## Step 8: Start the Bot
+## Step 9: Start the Bot
 
 1. Make sure your virtual environment is activated:
    ```bash
@@ -144,18 +168,22 @@ Setting a Server ID enables instant command syncing during development (otherwis
 
 ---
 
-## Step 9: Test the Bot
+## Step 10: Test the Bot
 
 1. In Discord, type `/ping` in any channel where the bot has access
 2. You should see the ping command appear (autocomplete)
 3. Send the command — the bot should respond with "🏓 Pong! Latency: XXms"
 
-If it works, try a Dune query with a valid query ID:
+If it works, check the bot status:
 ```
-/dune query_id:YOUR_QUERY_ID
+/status
 ```
 
-*(Replace `YOUR_QUERY_ID` with an actual Dune query ID from your Dune Analytics account)*
+This will show you the bot's current status and scheduled query information (if configured).
+
+**Note:** The bot behavior depends on which branch you're using:
+- **embed branch**: Use `/dune <query_id>` to execute queries interactively
+- **scheduled branch**: Bot runs queries automatically on a schedule; only `/ping` and `/status` commands are available
 
 ---
 

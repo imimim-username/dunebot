@@ -6,9 +6,12 @@ A modular Discord bot written in Python that runs Dune Analytics queries on comm
 
 ## Features
 
-- **Slash commands** (`/dune`, `/dune_latest`, `/ping`) to interact with Dune Analytics
+- **Per-row embeds** — Each row from query results is displayed in a separate embed for better readability
+- **Rate limit protection** — Configurable delay between embeds to avoid Discord rate limits
+- **Scheduled execution** — Automatically execute queries every 24 hours at a specified time
+- **Slash commands** (`/ping`, `/status`) for health checks and status monitoring
 - **Direct query execution** by query ID — no configuration needed
-- **Beautiful embeds** with formatted table output and automatic truncation
+- **Beautiful embeds** with formatted field output
 - **Async execution** with Discord's "thinking..." indicator for long-running queries
 - **Environment-based configuration** using `.env`
 - **Extensible architecture** for adding new commands and output formats
@@ -45,10 +48,19 @@ cp .env.example .env
 
 Edit `.env` with your credentials:
 
+**Basic Configuration:**
 ```dotenv
 DISCORD_BOT_TOKEN=your-discord-bot-token-here
 DISCORD_GUILD_ID=your-server-id-for-fast-sync  # Optional
 DUNE_API_KEY=your-dune-api-key-here
+EMBED_DELAY_SECONDS=10  # Optional: Delay between embeds (default: 10)
+```
+
+**Scheduled Execution (Optional):**
+```dotenv
+SCHEDULED_QUERY_ID=1234567  # Query ID to execute automatically
+SCHEDULED_EXECUTION_TIME=14:30  # Local time in HH:MM format (24-hour)
+DISCORD_CHANNEL_ID=999999999999999999  # Channel to post results to
 ```
 
 ### 4. Run the Bot
@@ -64,19 +76,23 @@ python -m scripts.run_bot
 | Command | Description |
 |---------|-------------|
 | `/ping` | Health check — shows bot latency |
-| `/dune <query_id>` | Execute a Dune query and display results |
-| `/dune_latest <query_id>` | Get cached results without re-executing |
+| `/status` | Bot status — shows uptime, scheduled query info, and next execution time |
 
-### Example Usage
+### Operating Modes
 
-```
-/dune query_id:1234567
-```
+The bot can operate in two modes:
 
-The bot will:
-1. Show "thinking..." while the query executes
-2. Display results in a formatted table embed
-3. Handle errors gracefully with user-friendly messages
+**1. Interactive Mode (embed branch)**
+- Use `/dune <query_id>` to execute queries on demand
+- Results are displayed as separate embeds (one per row)
+- Each embed shows specific columns as fields: blockchain, project, block_time, token_bought_symbol, token_sold_symbol, token_bought_amount, token_sold_amount, amount_usd, tx_hash
+- Configurable delay between embeds to avoid rate limits
+
+**2. Scheduled Mode (scheduled branch)**
+- Bot automatically executes a configured query every 24 hours
+- Results are posted to a specified Discord channel
+- Only `/ping` and `/status` commands are available for health monitoring
+- Use `/status` to check when the next execution will occur
 
 ---
 
@@ -140,6 +156,12 @@ dune-discord-bot/
 | `DISCORD_BOT_TOKEN` | Yes | Your Discord bot token |
 | `DISCORD_GUILD_ID` | No | Server ID for faster command sync during development |
 | `DUNE_API_KEY` | Yes | Your Dune Analytics API key |
+| `EMBED_DELAY_SECONDS` | No | Delay in seconds between sending embeds (default: 10) |
+| `SCHEDULED_QUERY_ID` | No* | Query ID to execute automatically (required for scheduled mode) |
+| `SCHEDULED_EXECUTION_TIME` | No* | Local time in HH:MM format (24-hour, e.g., "14:30") (required for scheduled mode) |
+| `DISCORD_CHANNEL_ID` | No* | Discord channel ID to post scheduled results to (required for scheduled mode) |
+
+\* Required only if using scheduled execution mode
 
 ### Optional: Query Name Mapping
 
@@ -188,20 +210,32 @@ uv pip install -r requirements.txt
 
 ## How It Works
 
+### Interactive Mode (embed branch)
+
 1. User runs `/dune 1234567`
 2. Bot defers response (shows "thinking...")
 3. `DuneClient` executes query via official SDK
-4. Results formatted into Discord embed with table layout
-5. Large results automatically truncated to fit Discord limits
-6. Bot sends formatted embed response
+4. Results formatted into multiple Discord embeds (one per row)
+5. Each row embed displays specific columns as fields
+6. Bot sends embeds sequentially with configurable delay between them
+
+### Scheduled Mode (scheduled branch)
+
+1. Bot starts and reads scheduled configuration from `.env`
+2. Scheduler calculates next execution time based on `SCHEDULED_EXECUTION_TIME`
+3. Bot waits until execution time
+4. At scheduled time, bot executes the query automatically
+5. Results are formatted and posted to the configured Discord channel
+6. Process repeats every 24 hours
 
 ---
 
 ## Roadmap
 
 - [x] **Phase 1:** Core MVP — `/dune <query_id>` execution
-- [ ] **Phase 2:** UX enhancements — autocomplete, `/dune list`
-- [ ] **Phase 3:** Advanced features — scheduling, charts, parameters
+- [x] **Phase 2:** Per-row embeds with rate limiting
+- [x] **Phase 3:** Scheduled query execution
+- [ ] **Phase 4:** UX enhancements — autocomplete, query parameters
 
 ---
 
