@@ -122,16 +122,18 @@ class DuneClient:
                 f"{len(results.result.rows)} rows"
             )
             
+            # Build metadata with safe attribute access
+            # Note: ResultsResponse may not have timing attributes depending on SDK version
+            metadata = {"state": str(results.state) if hasattr(results, 'state') else None}
+            for attr in ('submitted_at', 'execution_started_at', 'execution_ended_at'):
+                value = getattr(results, attr, None)
+                metadata[attr] = str(value) if value else None
+            
             return QueryResult(
                 query_id=query_id,
                 execution_id=results.execution_id or "",
                 rows=results.result.rows,
-                metadata={
-                    "state": str(results.state),
-                    "submitted_at": str(results.submitted_at) if results.submitted_at else None,
-                    "execution_started_at": str(results.execution_started_at) if results.execution_started_at else None,
-                    "execution_ended_at": str(results.execution_ended_at) if results.execution_ended_at else None,
-                },
+                metadata=metadata,
             )
             
         except TimeoutError as e:
@@ -256,4 +258,5 @@ class DuneClient:
                 )
         
         return query_params
+
 
