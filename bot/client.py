@@ -12,7 +12,7 @@ from discord.ext import commands
 from bot.config import Settings
 from bot.utils.logging import get_logger, setup_logging
 from bot.services.dune_client import DuneClient
-from bot.commands.dune_queries import register_dune_commands
+from bot.services.scheduler import ScheduledQueryRunner
 
 
 logger = get_logger("client")
@@ -43,6 +43,7 @@ class DuneBot(commands.Bot):
         
         self.settings = settings
         self._guild_id = settings.discord_guild_id
+        self._scheduler: ScheduledQueryRunner | None = None
     
     async def setup_hook(self) -> None:
         """Called when the bot is starting up.
@@ -77,6 +78,24 @@ class DuneBot(commands.Bot):
             name="Dune Analytics"
         )
         await self.change_presence(activity=activity)
+        
+        # Start scheduler if configured
+        if (
+            self.settings.scheduled_query_id
+            and self.settings.scheduled_execution_time
+            and self.settings.discord_channel_id
+        ):
+            dune_client = DuneClient(api_key=self.settings.dune_api_key)
+            self._scheduler = ScheduledQueryRunner(
+                dune_client=dune_client,
+                bot=self,
+                query_id=self.settings.scheduled_query_id,
+                execution_time=self.settings.scheduled_execution_time,
+                channel_id=self.settings.discord_channel_id,
+                embed_delay_seconds=self.settings.embed_delay_seconds,
+            )
+            self._scheduler.start()
+            logger.info("Scheduled query runner started")
     
     async def on_command_error(
         self,
@@ -113,13 +132,33 @@ def create_bot(settings: Settings) -> DuneBot:
             ephemeral=True
         )
     
-    # Initialize and register Dune commands
-    dune_client = DuneClient(api_key=settings.dune_api_key)
-    register_dune_commands(
-        bot.tree,
-        dune_client,
-        embed_delay_seconds=settings.embed_delay_seconds,
-    )
+    # Register the /status command
+    @bot.tree.command(name="status", description="Check bot status and scheduled query info")
+    async def status(interaction: discord.Interaction) -> None:
+        """Status check command."""
+        status_info = []
+        status_info.append(f"**Bot Status:** Online")
+        status_info.append(f"**Latency:** {round(bot.latency * 1000)}ms")
+        status_info.append(f"**Guilds:** {len(bot.guilds)}")
+        
+        if bot._scheduler:
+            scheduler_status = bot._scheduler.get_status()
+            status_info.append(f"\n**Scheduled Query:**")
+            status_info.append(f"- Query ID: {scheduler_status['query_id']}")
+            status_info.append(f"- Execution Time: {scheduler_status['execution_time']}")
+            status_info.append(f"- Channel ID: {scheduler_status['channel_id']}")
+            if scheduler_status['last_execution']:
+                status_info.append(f"- Last Execution: {scheduler_status['last_execution']}")
+            if scheduler_status['next_execution']:
+                status_info.append(f"- Next Execution: {scheduler_status['next_execution']}")
+            status_info.append(f"- Running: {scheduler_status['running']}")
+        else:
+            status_info.append(f"\n**Scheduled Query:** Not configured")
+        
+        await interaction.response.send_message(
+            "\n".join(status_info),
+            ephemeral=True
+        )
     
     return bot
 
@@ -146,6 +185,10 @@ async def run_bot(settings: Settings) -> None:
         logger.error(f"Bot crashed: {e}", exc_info=True)
         raise
     finally:
+        # Stop scheduler if running
+        if bot._scheduler:
+            bot._scheduler.stop()
+        
         if not bot.is_closed():
             await bot.close()
 
