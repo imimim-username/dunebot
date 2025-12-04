@@ -39,6 +39,7 @@ class Settings:
     
     # Optional settings (with defaults)
     discord_guild_id: int | None = None
+    embed_delay_seconds: int = 10
     
     # Query mappings (loaded from YAML)
     queries: dict[str, DuneQueryConfig] = field(default_factory=dict)
@@ -76,10 +77,22 @@ class Settings:
         guild_id_str = os.getenv("DISCORD_GUILD_ID")
         guild_id = int(guild_id_str) if guild_id_str else None
         
+        # Get embed delay setting (default 10 seconds)
+        embed_delay_str = os.getenv("EMBED_DELAY_SECONDS", "10")
+        try:
+            embed_delay = int(embed_delay_str)
+            if embed_delay < 0:
+                raise ValueError("EMBED_DELAY_SECONDS must be >= 0")
+        except ValueError as e:
+            if "must be" in str(e):
+                raise ValueError(f"EMBED_DELAY_SECONDS must be >= 0") from e
+            raise ValueError(f"EMBED_DELAY_SECONDS must be a valid integer, got: {embed_delay_str}") from e
+        
         return cls(
             discord_bot_token=discord_token,
             discord_guild_id=guild_id,
             dune_api_key=dune_api_key,
+            embed_delay_seconds=embed_delay,
         )
     
     def load_queries(self, yaml_path: Path | str | None = None) -> None:
