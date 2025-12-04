@@ -163,4 +163,3 @@ class LoggerMixin:
     def logger(self) -> logging.Logger:
         """Get a logger for this class."""
         return get_logger(self.__class__.__module__)
-
