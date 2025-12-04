@@ -79,6 +79,51 @@ class TestSettings:
         with pytest.raises(ValueError, match="EMBED_DELAY_SECONDS"):
             Settings.from_env("/nonexistent/.env")
     
+    def test_from_env_scheduled_settings(self, monkeypatch):
+        """Test loading scheduled execution settings."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("SCHEDULED_QUERY_ID", "12345")
+        monkeypatch.setenv("SCHEDULED_EXECUTION_TIME", "14:30")
+        monkeypatch.setenv("DISCORD_CHANNEL_ID", "999999")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
+        
+        assert settings.scheduled_query_id == 12345
+        assert settings.scheduled_execution_time == "14:30"
+        assert settings.discord_channel_id == 999999
+    
+    def test_from_env_scheduled_time_invalid_format(self, monkeypatch):
+        """Test that invalid time format raises ValueError."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("SCHEDULED_EXECUTION_TIME", "invalid")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        with pytest.raises(ValueError, match="SCHEDULED_EXECUTION_TIME"):
+            Settings.from_env("/nonexistent/.env")
+    
+    def test_from_env_scheduled_time_invalid_hour(self, monkeypatch):
+        """Test that invalid hour raises ValueError."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("SCHEDULED_EXECUTION_TIME", "25:00")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        with pytest.raises(ValueError, match="Hour must be between"):
+            Settings.from_env("/nonexistent/.env")
+    
+    def test_from_env_scheduled_time_invalid_minute(self, monkeypatch):
+        """Test that invalid minute raises ValueError."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("SCHEDULED_EXECUTION_TIME", "14:60")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        with pytest.raises(ValueError, match="Minute must be between"):
+            Settings.from_env("/nonexistent/.env")
+    
     def test_from_env_missing_discord_token(self, monkeypatch):
         """Test that missing DISCORD_BOT_TOKEN raises ValueError."""
         monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
