@@ -11,6 +11,8 @@ from discord.ext import commands
 
 from bot.config import Settings
 from bot.utils.logging import get_logger, setup_logging
+from bot.services.dune_client import DuneClient
+from bot.commands.dune_queries import register_dune_commands
 
 
 logger = get_logger("client")
@@ -110,6 +112,10 @@ def create_bot(settings: Settings) -> DuneBot:
             f"🏓 Pong! Latency: {latency_ms}ms",
             ephemeral=True
         )
+    
+    # Initialize and register Dune commands
+    dune_client = DuneClient(api_key=settings.dune_api_key)
+    register_dune_commands(bot.tree, dune_client)
     
     return bot
 
