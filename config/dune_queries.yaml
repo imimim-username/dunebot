@@ -1,0 +1,28 @@
+# Dune Query Mappings
+# Map friendly names to Dune query IDs for use with /dune <name> command
+#
+# Format:
+#   queries:
+#     <name>:
+#       id: <dune_query_id>
+#       description: "Human-readable description"
+#       result_type: "table" | "summary"
+#       params:  # Optional query parameters
+#         param_name: value
+#
+# Example:
+#   queries:
+#     tvl:
+#       id: 1234567
+#       description: "Show current TVL for the protocol"
+#       result_type: "table"
+#
+#     volume_24h:
+#       id: 2345678
+#       description: "Show last 24h trading volume"
+#       result_type: "table"
+#       params:
+#         token: "ETH"
+
+queries: {}
+
