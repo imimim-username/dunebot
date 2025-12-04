@@ -6,6 +6,8 @@ and displaying results.
 
 from __future__ import annotations
 
+import asyncio
+
 import discord
 from discord import app_commands
 
@@ -15,7 +17,7 @@ from bot.services.dune_client import (
     DuneTimeoutError,
 )
 from bot.formatters.discord_embeds import (
-    format_query_result,
+    format_query_result_rows,
     format_error_embed,
 )
 from bot.utils.logging import get_logger
@@ -31,13 +33,15 @@ class DuneCommands:
     for the Discord bot.
     """
     
-    def __init__(self, dune_client: DuneClient):
+    def __init__(self, dune_client: DuneClient, embed_delay_seconds: int = 10):
         """Initialize the Dune commands.
         
         Args:
             dune_client: The Dune client for executing queries.
+            embed_delay_seconds: Delay in seconds between sending embeds (default: 10).
         """
         self.dune_client = dune_client
+        self.embed_delay_seconds = embed_delay_seconds
     
     async def execute_query(
         self,
@@ -62,13 +66,41 @@ class DuneCommands:
                 timeout=60,
             )
             
-            # Format and send the result
-            embed = format_query_result(result)
-            await interaction.followup.send(embed=embed)
+            # Format results as multiple embeds (one per row)
+            embeds = format_query_result_rows(result)
+            
+            if not embeds:
+                # This shouldn't happen, but handle it gracefully
+                await interaction.followup.send(
+                    content="Query completed but no results to display."
+                )
+                return
+            
+            # Send embeds with delay between them
+            if len(embeds) > 1:
+                # Send progress message first
+                await interaction.followup.send(
+                    content=f"*Sending {len(embeds)} results with {self.embed_delay_seconds}s delay between each...*"
+                )
+                
+                # Send all embeds with delay
+                for i, embed in enumerate(embeds, start=1):
+                    if i > 1:  # Wait before sending (except for the first one)
+                        await asyncio.sleep(self.embed_delay_seconds)
+                    try:
+                        await interaction.followup.send(embed=embed)
+                    except Exception as e:
+                        logger.error(
+                            f"Error sending embed {i}/{len(embeds)} for query {query_id}: {e}"
+                        )
+                        # Continue sending remaining embeds even if one fails
+            else:
+                # Single embed, send it normally
+                await interaction.followup.send(embed=embeds[0])
             
             logger.info(
                 f"Query {query_id} completed with {result.row_count} rows "
-                f"for user {interaction.user}"
+                f"({len(embeds)} embeds) for user {interaction.user}"
             )
             
         except DuneTimeoutError as e:
@@ -115,11 +147,37 @@ class DuneCommands:
         try:
             result = await self.dune_client.get_latest_results_async(query_id)
             
-            embed = format_query_result(
-                result,
-                title=f"Latest Results: Query #{query_id}",
-            )
-            await interaction.followup.send(embed=embed)
+            # Format results as multiple embeds (one per row)
+            embeds = format_query_result_rows(result)
+            
+            if not embeds:
+                # This shouldn't happen, but handle it gracefully
+                await interaction.followup.send(
+                    content="Query completed but no results to display."
+                )
+                return
+            
+            # Send embeds with delay between them
+            if len(embeds) > 1:
+                # Send progress message first
+                await interaction.followup.send(
+                    content=f"*Sending {len(embeds)} results with {self.embed_delay_seconds}s delay between each...*"
+                )
+                
+                # Send all embeds with delay
+                for i, embed in enumerate(embeds, start=1):
+                    if i > 1:  # Wait before sending (except for the first one)
+                        await asyncio.sleep(self.embed_delay_seconds)
+                    try:
+                        await interaction.followup.send(embed=embed)
+                    except Exception as e:
+                        logger.error(
+                            f"Error sending embed {i}/{len(embeds)} for query {query_id}: {e}"
+                        )
+                        # Continue sending remaining embeds even if one fails
+            else:
+                # Single embed, send it normally
+                await interaction.followup.send(embed=embeds[0])
             
         except DuneQueryError as e:
             logger.error(f"Failed to get latest results for {query_id}: {e}")
@@ -133,17 +191,19 @@ class DuneCommands:
 def register_dune_commands(
     tree: app_commands.CommandTree,
     dune_client: DuneClient,
+    embed_delay_seconds: int = 10,
 ) -> DuneCommands:
     """Register Dune commands on the command tree.
     
     Args:
         tree: The Discord command tree to register commands on.
         dune_client: The Dune client for executing queries.
+        embed_delay_seconds: Delay in seconds between sending embeds (default: 10).
         
     Returns:
         The DuneCommands instance.
     """
-    commands = DuneCommands(dune_client)
+    commands = DuneCommands(dune_client, embed_delay_seconds=embed_delay_seconds)
     
     @tree.command(
         name="dune",
@@ -175,4 +235,5 @@ def register_dune_commands(
     
     logger.info("Dune commands registered")
     return commands
+
 

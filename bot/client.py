@@ -115,7 +115,11 @@ def create_bot(settings: Settings) -> DuneBot:
     
     # Initialize and register Dune commands
     dune_client = DuneClient(api_key=settings.dune_api_key)
-    register_dune_commands(bot.tree, dune_client)
+    register_dune_commands(
+        bot.tree,
+        dune_client,
+        embed_delay_seconds=settings.embed_delay_seconds,
+    )
     
     return bot
 
