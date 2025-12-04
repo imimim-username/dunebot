@@ -41,6 +41,11 @@ class Settings:
     discord_guild_id: int | None = None
     embed_delay_seconds: int = 10
     
+    # Scheduled execution settings (optional)
+    scheduled_query_id: int | None = None
+    scheduled_execution_time: str | None = None  # HH:MM format (24-hour)
+    discord_channel_id: int | None = None
+    
     # Query mappings (loaded from YAML)
     queries: dict[str, DuneQueryConfig] = field(default_factory=dict)
     
@@ -88,11 +93,37 @@ class Settings:
                 raise ValueError(f"EMBED_DELAY_SECONDS must be >= 0") from e
             raise ValueError(f"EMBED_DELAY_SECONDS must be a valid integer, got: {embed_delay_str}") from e
         
+        # Get scheduled execution settings (optional)
+        scheduled_query_id_str = os.getenv("SCHEDULED_QUERY_ID")
+        scheduled_query_id = int(scheduled_query_id_str) if scheduled_query_id_str else None
+        
+        scheduled_execution_time = os.getenv("SCHEDULED_EXECUTION_TIME")
+        if scheduled_execution_time:
+            # Validate time format (HH:MM)
+            try:
+                parts = scheduled_execution_time.split(":")
+                if len(parts) != 2:
+                    raise ValueError("SCHEDULED_EXECUTION_TIME must be in HH:MM format")
+                hour = int(parts[0])
+                minute = int(parts[1])
+                if not (0 <= hour <= 23):
+                    raise ValueError("Hour must be between 0 and 23")
+                if not (0 <= minute <= 59):
+                    raise ValueError("Minute must be between 0 and 59")
+            except ValueError as e:
+                raise ValueError(f"Invalid SCHEDULED_EXECUTION_TIME format: {e}") from e
+        
+        discord_channel_id_str = os.getenv("DISCORD_CHANNEL_ID")
+        discord_channel_id = int(discord_channel_id_str) if discord_channel_id_str else None
+        
         return cls(
             discord_bot_token=discord_token,
             discord_guild_id=guild_id,
             dune_api_key=dune_api_key,
             embed_delay_seconds=embed_delay,
+            scheduled_query_id=scheduled_query_id,
+            scheduled_execution_time=scheduled_execution_time,
+            discord_channel_id=discord_channel_id,
         )
     
     def load_queries(self, yaml_path: Path | str | None = None) -> None:
