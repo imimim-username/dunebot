@@ -1,0 +1,14 @@
+# Discord bot framework
+discord.py>=2.3.0
+
+# Dune Analytics SDK
+dune-client>=1.0.0
+
+# Configuration
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
