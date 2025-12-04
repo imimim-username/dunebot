@@ -118,6 +118,15 @@ class TestGetLogger:
         logger = get_logger("bot.services")
         assert logger.name == "bot.services"
     
+    def test_get_logger_similar_prefix(self):
+        """Test get_logger correctly prefixes names that start with 'bot' but not 'bot.'"""
+        # Names like "botnet" or "bot_helpers" should still get the "bot." prefix
+        logger = get_logger("botnet")
+        assert logger.name == "bot.botnet"
+        
+        logger2 = get_logger("bot_helpers")
+        assert logger2.name == "bot.bot_helpers"
+    
     def test_get_logger_returns_logger_instance(self):
         """Test get_logger returns a Logger instance."""
         logger = get_logger("test")

@@ -57,12 +57,14 @@ def _setup_from_yaml(config_path: Path) -> None:
         config_path: Path to the logging.yaml file.
     """
     with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+        config = yaml.safe_load(f) or {}
     
     # Ensure log directory exists if file handler is configured
     _ensure_log_directories(config)
     
-    logging.config.dictConfig(config)
+    # Only apply config if it has the required 'version' key
+    if config.get("version"):
+        logging.config.dictConfig(config)
 
 
 def _ensure_log_directories(config: dict[str, Any]) -> None:
@@ -143,7 +145,7 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         A configured logger instance.
     """
-    if not name.startswith("bot"):
+    if not name.startswith("bot."):
         name = f"bot.{name}"
     return logging.getLogger(name)
 
