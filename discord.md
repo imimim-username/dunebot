@@ -88,10 +88,14 @@ Setting a Server ID enables instant command syncing during development (otherwis
 
 ## Step 7: Configure the Application
 
-1. In your project directory, create a `.env` file (if it doesn't exist):
+1. In your project directory, create a `.env` file for your secrets:
    ```bash
    cp .env.example .env
+   # OR use the secrets template:
+   # cp .env.secrets.example .env
    ```
+   
+   ⚠️ **IMPORTANT**: The `.env` file contains real secrets and is automatically ignored by git. Never commit it!
 
 2. Edit the `.env` file and add your credentials:
 
@@ -112,6 +116,8 @@ Setting a Server ID enables instant command syncing during development (otherwis
    DISCORD_GUILD_ID=987654321098765432
    DUNE_API_KEY=your-dune-api-key-here
    ```
+   
+   **Note:** Never commit your actual `.env` file! It should contain real secrets and is automatically ignored by git.
 
 ---
 
@@ -144,10 +150,12 @@ Setting a Server ID enables instant command syncing during development (otherwis
 2. You should see the ping command appear (autocomplete)
 3. Send the command — the bot should respond with "🏓 Pong! Latency: XXms"
 
-If it works, try a Dune query:
+If it works, try a Dune query with a valid query ID:
 ```
 /dune query_id:YOUR_QUERY_ID
 ```
+
+*(Replace `YOUR_QUERY_ID` with an actual Dune query ID from your Dune Analytics account)*
 
 ---
 

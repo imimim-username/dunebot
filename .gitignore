@@ -54,6 +54,10 @@ coverage.xml
 
 # Environments
 .env
+.env.local
+.env.*.local
+.env.secrets
+*.env.secrets
 .venv
 env/
 venv/
@@ -92,4 +96,14 @@ Thumbs.db
 
 # Project specific
 *.log
+
+# Secrets files (keep these local only!)
+.env
+.env.local
+.env.*.local
+.env.secrets
+*.env.secrets
+secrets.txt
+secrets.yaml
+secrets.yml
 
