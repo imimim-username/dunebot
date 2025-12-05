@@ -91,8 +91,8 @@ def _format_discord_timestamp(block_time: str | datetime | None) -> str:
             "%Y-%m-%d %H:%M",
         ]:
             try:
-                # Remove timezone suffix if present
-                clean_time = block_time.split("+")[0].split("Z")[0]
+                # Remove timezone suffix if present (handles " UTC", "+00:00", "Z")
+                clean_time = block_time.replace(" UTC", "").split("+")[0].split("Z")[0]
                 dt = datetime.strptime(clean_time, fmt)
                 dt = dt.replace(tzinfo=timezone.utc)
                 unix_ts = int(dt.timestamp())
