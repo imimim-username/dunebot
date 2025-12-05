@@ -2,6 +2,7 @@
 
 import pytest
 import discord
+from datetime import datetime, timezone
 
 from bot.formatters.discord_embeds import (
     format_query_result,
@@ -10,6 +11,9 @@ from bot.formatters.discord_embeds import (
     format_loading_embed,
     _format_table,
     _format_field_value,
+    _format_discord_timestamp,
+    _format_tx_link,
+    _format_alcx_amount,
     _truncate,
     MAX_EMBED_DESCRIPTION,
 )
@@ -214,8 +218,8 @@ class TestTruncate:
 class TestFormatQueryResultRows:
     """Test format_query_result_rows function."""
     
-    def test_single_row(self):
-        """Test formatting a single row result."""
+    def test_single_row_alcx_bought(self):
+        """Test formatting a single row result with ALCX bought."""
         result = QueryResult(
             query_id=12345,
             execution_id="exec-1",
@@ -224,12 +228,12 @@ class TestFormatQueryResultRows:
                     "blockchain": "ethereum",
                     "project": "Uniswap",
                     "block_time": "2024-01-01T12:00:00",
-                    "token_bought_symbol": "ETH",
-                    "token_sold_symbol": "USDC",
-                    "token_bought_amount": 1.5,
-                    "token_sold_amount": 3000.0,
+                    "token_bought_symbol": "ALCX",
+                    "token_sold_symbol": "ETH",
+                    "token_bought_amount": 100.5,
+                    "token_sold_amount": 1.0,
                     "amount_usd": 3000.0,
-                    "tx_hash": "0x1234",
+                    "tx_hash": "0x1234abcd",
                 }
             ],
             metadata={},
@@ -239,20 +243,59 @@ class TestFormatQueryResultRows:
         
         assert len(embeds) == 1
         embed = embeds[0]
-        assert embed.title == "ALCX DEX Swap"
+        assert embed.title == "ALCX Dex Swap"
         assert embed.color is not None
-        # Check that all desired columns are present as fields
+        
+        # Check the slim field layout (4 fields)
         field_names = [field.name for field in embed.fields]
-        assert "Blockchain" in field_names
-        assert "Project" in field_names
         assert "Block Time" in field_names
-        assert "Token Bought Symbol" in field_names
-        assert "Token Sold Symbol" in field_names
-        assert "Token Bought Amount" in field_names
-        assert "Token Sold Amount" in field_names
-        assert "Amount Usd" in field_names
-        assert "Tx Hash" in field_names
+        assert "ALCX Bought" in field_names
+        assert "Amount USD" in field_names
+        assert "Txn" in field_names
+        assert len(embed.fields) == 4
+        
+        # Check Block Time uses Discord timestamp format
+        block_time_field = next(f for f in embed.fields if f.name == "Block Time")
+        assert block_time_field.value.startswith("<t:")
+        
+        # Check Txn is a clickable link
+        txn_field = next(f for f in embed.fields if f.name == "Txn")
+        assert "[Txn](https://etherscan.io/tx/0x1234abcd)" == txn_field.value
+        
         assert "Query ID: 12345 | Row 1 of 1" in embed.footer.text
+    
+    def test_single_row_alcx_sold(self):
+        """Test formatting a single row result with ALCX sold."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "blockchain": "optimism",
+                    "block_time": "2024-01-01T12:00:00",
+                    "token_bought_symbol": "ETH",
+                    "token_sold_symbol": "ALCX",
+                    "token_bought_amount": 1.0,
+                    "token_sold_amount": 50.25,
+                    "amount_usd": 1500.0,
+                    "tx_hash": "0x5678efgh",
+                }
+            ],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 1
+        embed = embeds[0]
+        
+        field_names = [field.name for field in embed.fields]
+        assert "ALCX Sold" in field_names
+        assert "ALCX Bought" not in field_names
+        
+        # Check Txn links to Optimism explorer
+        txn_field = next(f for f in embed.fields if f.name == "Txn")
+        assert "optimistic.etherscan.io" in txn_field.value
     
     def test_multiple_rows(self):
         """Test formatting multiple rows."""
@@ -262,24 +305,22 @@ class TestFormatQueryResultRows:
             rows=[
                 {
                     "blockchain": "ethereum",
-                    "project": "Uniswap",
                     "block_time": "2024-01-01T12:00:00",
-                    "token_bought_symbol": "ETH",
-                    "token_sold_symbol": "USDC",
-                    "token_bought_amount": 1.5,
-                    "token_sold_amount": 3000.0,
+                    "token_bought_symbol": "ALCX",
+                    "token_sold_symbol": "ETH",
+                    "token_bought_amount": 100.0,
+                    "token_sold_amount": 1.0,
                     "amount_usd": 3000.0,
                     "tx_hash": "0x1234",
                 },
                 {
-                    "blockchain": "polygon",
-                    "project": "SushiSwap",
+                    "blockchain": "arbitrum",
                     "block_time": "2024-01-01T13:00:00",
-                    "token_bought_symbol": "MATIC",
-                    "token_sold_symbol": "USDC",
-                    "token_bought_amount": 100.0,
+                    "token_bought_symbol": "ETH",
+                    "token_sold_symbol": "ALCX",
+                    "token_bought_amount": 1.0,
                     "token_sold_amount": 50.0,
-                    "amount_usd": 50.0,
+                    "amount_usd": 1500.0,
                     "tx_hash": "0x5678",
                 },
             ],
@@ -289,15 +330,19 @@ class TestFormatQueryResultRows:
         embeds = format_query_result_rows(result)
         
         assert len(embeds) == 2
-        # Check first embed
-        assert embeds[0].title == "ALCX DEX Swap"
+        # Check first embed - ALCX Bought
+        assert embeds[0].title == "ALCX Dex Swap"
         assert "Row 1 of 2" in embeds[0].footer.text
-        # Check second embed
-        assert embeds[1].title == "ALCX DEX Swap"
+        field_names_0 = [f.name for f in embeds[0].fields]
+        assert "ALCX Bought" in field_names_0
+        
+        # Check second embed - ALCX Sold, Arbitrum link
+        assert embeds[1].title == "ALCX Dex Swap"
         assert "Row 2 of 2" in embeds[1].footer.text
-        # Check that each embed has the correct data
-        assert "ethereum" in embeds[0].fields[0].value
-        assert "polygon" in embeds[1].fields[0].value
+        field_names_1 = [f.name for f in embeds[1].fields]
+        assert "ALCX Sold" in field_names_1
+        txn_field = next(f for f in embeds[1].fields if f.name == "Txn")
+        assert "arbiscan.io" in txn_field.value
     
     def test_empty_result(self):
         """Test formatting an empty result."""
@@ -312,20 +357,24 @@ class TestFormatQueryResultRows:
         
         assert len(embeds) == 1
         embed = embeds[0]
-        assert embed.title == "ALCX DEX Swap"
+        assert embed.title == "ALCX Dex Swap"
         assert "No results returned" in embed.description
         assert "0 rows" in embed.footer.text
     
-    def test_missing_columns(self):
-        """Test that missing columns are handled gracefully."""
+    def test_unknown_blockchain(self):
+        """Test unknown blockchain shows 'unknown' for Txn."""
         result = QueryResult(
             query_id=12345,
             execution_id="exec-1",
             rows=[
                 {
-                    "blockchain": "ethereum",
-                    "project": "Uniswap",
-                    # Missing some columns
+                    "blockchain": "polygon",
+                    "block_time": "2024-01-01T12:00:00",
+                    "token_bought_symbol": "ALCX",
+                    "token_sold_symbol": "MATIC",
+                    "token_bought_amount": 100.0,
+                    "token_sold_amount": 500.0,
+                    "amount_usd": 1000.0,
                     "tx_hash": "0x1234",
                 }
             ],
@@ -335,19 +384,24 @@ class TestFormatQueryResultRows:
         embeds = format_query_result_rows(result)
         
         assert len(embeds) == 1
-        embed = embeds[0]
-        # Should only have fields for columns that exist
-        field_names = [field.name for field in embed.fields]
-        assert "Blockchain" in field_names
-        assert "Project" in field_names
-        assert "Tx Hash" in field_names
+        txn_field = next(f for f in embeds[0].fields if f.name == "Txn")
+        assert txn_field.value == "unknown"
     
     def test_custom_title_and_color(self):
         """Test with custom title and color."""
         result = QueryResult(
             query_id=11111,
             execution_id="exec-1",
-            rows=[{"blockchain": "ethereum", "project": "Test"}],
+            rows=[{
+                "blockchain": "ethereum",
+                "block_time": "2024-01-01T12:00:00",
+                "token_bought_symbol": "ALCX",
+                "token_sold_symbol": "ETH",
+                "token_bought_amount": 10.0,
+                "token_sold_amount": 1.0,
+                "amount_usd": 500.0,
+                "tx_hash": "0x1234",
+            }],
             metadata={},
         )
         
@@ -368,12 +422,11 @@ class TestFormatQueryResultRows:
             rows=[
                 {
                     "blockchain": None,
-                    "project": "Uniswap",
-                    "block_time": "2024-01-01T12:00:00",
-                    "token_bought_symbol": "ETH",
-                    "token_sold_symbol": None,
-                    "token_bought_amount": 1.5,
-                    "token_sold_amount": 3000.0,
+                    "block_time": None,
+                    "token_bought_symbol": "ALCX",
+                    "token_sold_symbol": "ETH",
+                    "token_bought_amount": 100.0,
+                    "token_sold_amount": 1.0,
                     "amount_usd": None,
                     "tx_hash": "0x1234",
                 }
@@ -385,10 +438,52 @@ class TestFormatQueryResultRows:
         
         assert len(embeds) == 1
         embed = embeds[0]
-        # Check that None values are displayed as "N/A"
-        for field in embed.fields:
-            if field.name == "Blockchain" or field.name == "Token Sold Symbol" or field.name == "Amount Usd":
-                assert field.value == "N/A"
+        
+        # Block Time should be N/A
+        block_time_field = next(f for f in embed.fields if f.name == "Block Time")
+        assert block_time_field.value == "N/A"
+        
+        # Amount USD should be N/A
+        amount_field = next(f for f in embed.fields if f.name == "Amount USD")
+        assert amount_field.value == "N/A"
+        
+        # Txn should be unknown (blockchain is None)
+        txn_field = next(f for f in embed.fields if f.name == "Txn")
+        assert txn_field.value == "unknown"
+    
+    def test_no_alcx_in_transaction(self):
+        """Test transaction with no ALCX - should still have 3 fields."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "blockchain": "ethereum",
+                    "block_time": "2024-01-01T12:00:00",
+                    "token_bought_symbol": "ETH",
+                    "token_sold_symbol": "USDC",
+                    "token_bought_amount": 1.0,
+                    "token_sold_amount": 3000.0,
+                    "amount_usd": 3000.0,
+                    "tx_hash": "0x1234",
+                }
+            ],
+            metadata={},
+        )
+        
+        embeds = format_query_result_rows(result)
+        
+        assert len(embeds) == 1
+        embed = embeds[0]
+        
+        # Should have 3 fields (no ALCX Bought/Sold)
+        field_names = [f.name for f in embed.fields]
+        assert "Block Time" in field_names
+        assert "Amount USD" in field_names
+        assert "Txn" in field_names
+        assert "ALCX Bought" not in field_names
+        assert "ALCX Sold" not in field_names
+        assert len(embed.fields) == 3
 
 
 class TestFormatFieldValue:
@@ -419,4 +514,176 @@ class TestFormatFieldValue:
         result = _format_field_value("2024-01-01T12:00:00")
         assert "2024-01-01" in result
         assert "12:00:00" in result
+
+
+class TestFormatDiscordTimestamp:
+    """Test _format_discord_timestamp helper function."""
+    
+    def test_none_value(self):
+        """Test None value returns N/A."""
+        result = _format_discord_timestamp(None)
+        assert result == "N/A"
+    
+    def test_iso_datetime_string(self):
+        """Test ISO format datetime string."""
+        result = _format_discord_timestamp("2024-01-01T12:00:00")
+        # Should return Discord timestamp format <t:UNIX:f>
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+        # Verify the unix timestamp is reasonable (2024-01-01 12:00:00 UTC)
+        assert "1704110400" in result
+    
+    def test_iso_datetime_with_microseconds(self):
+        """Test ISO format with microseconds."""
+        result = _format_discord_timestamp("2024-01-01T12:00:00.123456")
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+    
+    def test_iso_datetime_with_timezone(self):
+        """Test ISO format with timezone suffix."""
+        result = _format_discord_timestamp("2024-01-01T12:00:00+00:00")
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+    
+    def test_iso_datetime_with_z_suffix(self):
+        """Test ISO format with Z suffix."""
+        result = _format_discord_timestamp("2024-01-01T12:00:00Z")
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+    
+    def test_datetime_object(self):
+        """Test datetime object input."""
+        dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        result = _format_discord_timestamp(dt)
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+        assert "1704110400" in result
+    
+    def test_datetime_object_naive(self):
+        """Test naive datetime object (no timezone)."""
+        dt = datetime(2024, 1, 1, 12, 0, 0)
+        result = _format_discord_timestamp(dt)
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+    
+    def test_invalid_string(self):
+        """Test invalid string returns N/A."""
+        result = _format_discord_timestamp("not a date")
+        assert result == "N/A"
+
+
+class TestFormatTxLink:
+    """Test _format_tx_link helper function."""
+    
+    def test_ethereum_link(self):
+        """Test Ethereum transaction link."""
+        result = _format_tx_link("ethereum", "0x1234abcd")
+        assert result == "[Txn](https://etherscan.io/tx/0x1234abcd)"
+    
+    def test_optimism_link(self):
+        """Test Optimism transaction link."""
+        result = _format_tx_link("optimism", "0x5678efgh")
+        assert result == "[Txn](https://optimistic.etherscan.io/tx/0x5678efgh)"
+    
+    def test_arbitrum_link(self):
+        """Test Arbitrum transaction link."""
+        result = _format_tx_link("arbitrum", "0x9abcijkl")
+        assert result == "[Txn](https://arbiscan.io/tx/0x9abcijkl)"
+    
+    def test_unknown_blockchain(self):
+        """Test unknown blockchain returns 'unknown'."""
+        result = _format_tx_link("polygon", "0x1234")
+        assert result == "unknown"
+    
+    def test_none_blockchain(self):
+        """Test None blockchain returns 'unknown'."""
+        result = _format_tx_link(None, "0x1234")
+        assert result == "unknown"
+    
+    def test_none_tx_hash(self):
+        """Test None tx_hash returns 'unknown'."""
+        result = _format_tx_link("ethereum", None)
+        assert result == "unknown"
+    
+    def test_case_insensitive(self):
+        """Test blockchain name is case insensitive."""
+        result = _format_tx_link("ETHEREUM", "0x1234")
+        assert "etherscan.io" in result
+        
+        result = _format_tx_link("Optimism", "0x1234")
+        assert "optimistic.etherscan.io" in result
+
+
+class TestFormatAlcxAmount:
+    """Test _format_alcx_amount helper function."""
+    
+    def test_alcx_bought(self):
+        """Test ALCX bought scenario."""
+        row = {
+            "token_bought_symbol": "ALCX",
+            "token_sold_symbol": "ETH",
+            "token_bought_amount": 100.5,
+            "token_sold_amount": 1.0,
+        }
+        field_name, amount = _format_alcx_amount(row)
+        assert field_name == "ALCX Bought"
+        assert "100.5" in amount
+    
+    def test_alcx_sold(self):
+        """Test ALCX sold scenario."""
+        row = {
+            "token_bought_symbol": "ETH",
+            "token_sold_symbol": "ALCX",
+            "token_bought_amount": 1.0,
+            "token_sold_amount": 50.25,
+        }
+        field_name, amount = _format_alcx_amount(row)
+        assert field_name == "ALCX Sold"
+        assert "50.25" in amount
+    
+    def test_alcx_sold_priority(self):
+        """Test ALCX Sold takes priority when both are ALCX."""
+        row = {
+            "token_bought_symbol": "ALCX",
+            "token_sold_symbol": "ALCX",
+            "token_bought_amount": 100.0,
+            "token_sold_amount": 200.0,
+        }
+        field_name, amount = _format_alcx_amount(row)
+        assert field_name == "ALCX Sold"
+        assert "200" in amount
+    
+    def test_no_alcx(self):
+        """Test no ALCX in transaction."""
+        row = {
+            "token_bought_symbol": "ETH",
+            "token_sold_symbol": "USDC",
+            "token_bought_amount": 1.0,
+            "token_sold_amount": 3000.0,
+        }
+        field_name, amount = _format_alcx_amount(row)
+        assert field_name is None
+        assert amount is None
+    
+    def test_missing_symbols(self):
+        """Test missing token symbols."""
+        row = {
+            "token_bought_amount": 1.0,
+            "token_sold_amount": 100.0,
+        }
+        field_name, amount = _format_alcx_amount(row)
+        assert field_name is None
+        assert amount is None
+    
+    def test_none_amount(self):
+        """Test None amount is handled."""
+        row = {
+            "token_bought_symbol": "ALCX",
+            "token_sold_symbol": "ETH",
+            "token_bought_amount": None,
+            "token_sold_amount": 1.0,
+        }
+        field_name, amount = _format_alcx_amount(row)
+        assert field_name == "ALCX Bought"
+        assert amount == "N/A"
 
