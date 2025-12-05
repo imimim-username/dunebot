@@ -218,3 +218,5 @@ class ScheduledQueryRunner:
             except Exception as send_error:
                 logger.error(f"Failed to send error embed: {send_error}")
 
+
+

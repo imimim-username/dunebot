@@ -183,3 +183,5 @@ class TestScheduledQueryRunner:
             if embed:
                 assert "Error" in embed.title or "error" in str(embed).lower()
 
+
+
