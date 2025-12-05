@@ -111,7 +111,7 @@ def _format_tx_link(blockchain: str | None, tx_hash: str | None) -> str:
         tx_hash: The transaction hash.
         
     Returns:
-        Markdown link like "[Txn](https://etherscan.io/tx/0x...)" or "unknown".
+        Markdown link like "[0x1234...](https://etherscan.io/tx/0x...)" or "unknown".
     """
     if tx_hash is None:
         return "unknown"
@@ -124,7 +124,7 @@ def _format_tx_link(blockchain: str | None, tx_hash: str | None) -> str:
     
     if blockchain_lower in BLOCKCHAIN_EXPLORERS:
         url = f"{BLOCKCHAIN_EXPLORERS[blockchain_lower]}{tx_hash}"
-        return f"[Txn]({url})"
+        return f"[{tx_hash}]({url})"
     
     return "unknown"
 

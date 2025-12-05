@@ -258,9 +258,9 @@ class TestFormatQueryResultRows:
         block_time_field = next(f for f in embed.fields if f.name == "Block Time")
         assert block_time_field.value.startswith("<t:")
         
-        # Check Txn is a clickable link
+        # Check Txn is a clickable link with tx_hash as text
         txn_field = next(f for f in embed.fields if f.name == "Txn")
-        assert "[Txn](https://etherscan.io/tx/0x1234abcd)" == txn_field.value
+        assert "[0x1234abcd](https://etherscan.io/tx/0x1234abcd)" == txn_field.value
         
         assert "Query ID: 12345 | Row 1 of 1" in embed.footer.text
     
@@ -596,17 +596,17 @@ class TestFormatTxLink:
     def test_ethereum_link(self):
         """Test Ethereum transaction link."""
         result = _format_tx_link("ethereum", "0x1234abcd")
-        assert result == "[Txn](https://etherscan.io/tx/0x1234abcd)"
+        assert result == "[0x1234abcd](https://etherscan.io/tx/0x1234abcd)"
     
     def test_optimism_link(self):
         """Test Optimism transaction link."""
         result = _format_tx_link("optimism", "0x5678efgh")
-        assert result == "[Txn](https://optimistic.etherscan.io/tx/0x5678efgh)"
+        assert result == "[0x5678efgh](https://optimistic.etherscan.io/tx/0x5678efgh)"
     
     def test_arbitrum_link(self):
         """Test Arbitrum transaction link."""
         result = _format_tx_link("arbitrum", "0x9abcijkl")
-        assert result == "[Txn](https://arbiscan.io/tx/0x9abcijkl)"
+        assert result == "[0x9abcijkl](https://arbiscan.io/tx/0x9abcijkl)"
     
     def test_unknown_blockchain(self):
         """Test unknown blockchain returns 'unknown'."""
