@@ -45,7 +45,8 @@ def _format_discord_timestamp(block_time: str | datetime | None) -> str:
     timezone automatically.
     
     Args:
-        block_time: UTC datetime string (ISO format) or datetime object.
+        block_time: UTC datetime string (ISO format), datetime object,
+                    pandas Timestamp, or numpy datetime64.
         
     Returns:
         Discord timestamp string like "<t:1704110400:f>" or "N/A" if parsing fails.
@@ -53,7 +54,25 @@ def _format_discord_timestamp(block_time: str | datetime | None) -> str:
     if block_time is None:
         return "N/A"
     
-    # If already a datetime object
+    # Handle pandas Timestamp (has .timestamp() method and isn't a plain datetime)
+    # Check this before datetime since pandas.Timestamp inherits from datetime
+    if hasattr(block_time, 'timestamp') and not isinstance(block_time, datetime):
+        try:
+            unix_ts = int(block_time.timestamp())
+            return f"<t:{unix_ts}:f>"
+        except (ValueError, TypeError, OSError):
+            pass
+    
+    # Handle numpy datetime64 (has .astype() method)
+    if hasattr(block_time, 'astype') and not isinstance(block_time, (datetime, str)):
+        try:
+            # Convert numpy datetime64 to unix timestamp
+            unix_ts = int(block_time.astype('datetime64[s]').astype('int64'))
+            return f"<t:{unix_ts}:f>"
+        except (ValueError, TypeError):
+            pass
+    
+    # If already a datetime object (includes pandas.Timestamp which inherits from datetime)
     if isinstance(block_time, datetime):
         # Ensure it's UTC
         if block_time.tzinfo is None:

@@ -533,6 +533,24 @@ class TestFormatDiscordTimestamp:
         # Verify the unix timestamp is reasonable (2024-01-01 12:00:00 UTC)
         assert "1704110400" in result
     
+    def test_pandas_timestamp(self):
+        """Test pandas Timestamp input."""
+        pd = pytest.importorskip("pandas")
+        ts = pd.Timestamp("2024-01-01 12:00:00", tz="UTC")
+        result = _format_discord_timestamp(ts)
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+        assert "1704110400" in result
+    
+    def test_numpy_datetime64(self):
+        """Test numpy datetime64 input."""
+        np = pytest.importorskip("numpy")
+        dt64 = np.datetime64("2024-01-01T12:00:00")
+        result = _format_discord_timestamp(dt64)
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+        assert "1704110400" in result
+    
     def test_iso_datetime_with_microseconds(self):
         """Test ISO format with microseconds."""
         result = _format_discord_timestamp("2024-01-01T12:00:00.123456")
