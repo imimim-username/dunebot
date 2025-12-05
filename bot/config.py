@@ -46,6 +46,9 @@ class Settings:
     scheduled_execution_time: str | None = None  # HH:MM format (24-hour)
     discord_channel_id: int | None = None
     
+    # ALCX sums query (optional - displays 24h buy/sell totals after scheduled embeds)
+    alcx_sums_query_id: int | None = None
+    
     # Query mappings (loaded from YAML)
     queries: dict[str, DuneQueryConfig] = field(default_factory=dict)
     
@@ -116,6 +119,10 @@ class Settings:
         discord_channel_id_str = os.getenv("DISCORD_CHANNEL_ID")
         discord_channel_id = int(discord_channel_id_str) if discord_channel_id_str else None
         
+        # Get ALCX sums query ID (optional)
+        alcx_sums_query_id_str = os.getenv("ALCX_SUMS_QUERY_ID")
+        alcx_sums_query_id = int(alcx_sums_query_id_str) if alcx_sums_query_id_str else None
+        
         return cls(
             discord_bot_token=discord_token,
             discord_guild_id=guild_id,
@@ -124,6 +131,7 @@ class Settings:
             scheduled_query_id=scheduled_query_id,
             scheduled_execution_time=scheduled_execution_time,
             discord_channel_id=discord_channel_id,
+            alcx_sums_query_id=alcx_sums_query_id,
         )
     
     def load_queries(self, yaml_path: Path | str | None = None) -> None:
