@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from bot.formatters.discord_embeds import (
     format_query_result,
     format_query_result_rows,
+    format_alcx_sums_embed,
     format_error_embed,
     format_loading_embed,
     _format_table,
@@ -612,6 +613,165 @@ class TestFormatTxLink:
         
         result = _format_tx_link("Optimism", "0x1234")
         assert "optimistic.etherscan.io" in result
+
+
+class TestFormatAlcxSumsEmbed:
+    """Test format_alcx_sums_embed function."""
+    
+    def test_basic_sums(self):
+        """Test formatting basic ALCX sums result."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "alcx_bought_usd": 15000.50,
+                    "alcx_sold_usd": 8500.25,
+                }
+            ],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(result)
+        
+        assert isinstance(embed, discord.Embed)
+        assert embed.title == "ALCX 24h Summary"
+        assert embed.color is not None
+        
+        # Check fields
+        field_names = [field.name for field in embed.fields]
+        assert "ALCX Bought (USD)" in field_names
+        assert "ALCX Sold (USD)" in field_names
+        assert len(embed.fields) == 2
+        
+        # Check values are formatted as USD
+        bought_field = next(f for f in embed.fields if f.name == "ALCX Bought (USD)")
+        assert "$15,000.50" in bought_field.value
+        
+        sold_field = next(f for f in embed.fields if f.name == "ALCX Sold (USD)")
+        assert "$8,500.25" in sold_field.value
+        
+        assert "Query ID: 12345" in embed.footer.text
+        assert "24h Totals" in embed.footer.text
+    
+    def test_empty_result(self):
+        """Test formatting empty result."""
+        result = QueryResult(
+            query_id=99999,
+            execution_id="exec-empty",
+            rows=[],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(result)
+        
+        assert "No data available" in embed.description
+        assert "Query ID: 99999" in embed.footer.text
+    
+    def test_none_values(self):
+        """Test handling None values."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "alcx_bought_usd": None,
+                    "alcx_sold_usd": None,
+                }
+            ],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(result)
+        
+        bought_field = next(f for f in embed.fields if f.name == "ALCX Bought (USD)")
+        assert bought_field.value == "N/A"
+        
+        sold_field = next(f for f in embed.fields if f.name == "ALCX Sold (USD)")
+        assert sold_field.value == "N/A"
+    
+    def test_missing_columns(self):
+        """Test handling missing columns."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "other_column": 123,
+                }
+            ],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(result)
+        
+        bought_field = next(f for f in embed.fields if f.name == "ALCX Bought (USD)")
+        assert bought_field.value == "N/A"
+        
+        sold_field = next(f for f in embed.fields if f.name == "ALCX Sold (USD)")
+        assert sold_field.value == "N/A"
+    
+    def test_large_values(self):
+        """Test formatting large USD values."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "alcx_bought_usd": 1234567.89,
+                    "alcx_sold_usd": 9876543.21,
+                }
+            ],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(result)
+        
+        bought_field = next(f for f in embed.fields if f.name == "ALCX Bought (USD)")
+        assert "$1,234,567.89" in bought_field.value
+        
+        sold_field = next(f for f in embed.fields if f.name == "ALCX Sold (USD)")
+        assert "$9,876,543.21" in sold_field.value
+    
+    def test_custom_title_and_color(self):
+        """Test with custom title and color."""
+        result = QueryResult(
+            query_id=11111,
+            execution_id="exec-1",
+            rows=[{"alcx_bought_usd": 100, "alcx_sold_usd": 200}],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(
+            result,
+            title="Custom Title",
+            color=discord.Color.green(),
+        )
+        
+        assert embed.title == "Custom Title"
+        assert embed.color == discord.Color.green()
+    
+    def test_string_numeric_values(self):
+        """Test handling string representations of numbers."""
+        result = QueryResult(
+            query_id=12345,
+            execution_id="exec-1",
+            rows=[
+                {
+                    "alcx_bought_usd": "5000.00",
+                    "alcx_sold_usd": "3000.50",
+                }
+            ],
+            metadata={},
+        )
+        
+        embed = format_alcx_sums_embed(result)
+        
+        bought_field = next(f for f in embed.fields if f.name == "ALCX Bought (USD)")
+        assert "$5,000.00" in bought_field.value
+        
+        sold_field = next(f for f in embed.fields if f.name == "ALCX Sold (USD)")
+        assert "$3,000.50" in sold_field.value
 
 
 class TestFormatAlcxAmount:
