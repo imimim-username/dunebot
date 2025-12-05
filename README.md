@@ -9,6 +9,7 @@ A modular Discord bot written in Python that runs Dune Analytics queries on comm
 - **Per-row embeds** — Each row from query results is displayed in a separate embed for better readability
 - **Rate limit protection** — Configurable delay between embeds to avoid Discord rate limits
 - **Scheduled execution** — Automatically execute queries every 24 hours at a specified time
+- **24h ALCX summary** — Optional summary embed showing total USD bought/sold after scheduled query
 - **Slash commands** (`/ping`, `/status`) for health checks and status monitoring
 - **Direct query execution** by query ID — no configuration needed
 - **Beautiful embeds** with formatted field output
@@ -61,6 +62,7 @@ EMBED_DELAY_SECONDS=10  # Optional: Delay between embeds (default: 10)
 SCHEDULED_QUERY_ID=1234567  # Query ID to execute automatically
 SCHEDULED_EXECUTION_TIME=14:30  # Local time in HH:MM format (24-hour)
 DISCORD_CHANNEL_ID=999999999999999999  # Channel to post results to
+ALCX_SUMS_QUERY_ID=7654321  # Optional: 24h totals query (alcx_bought_usd, alcx_sold_usd)
 ```
 
 ### 4. Run the Bot
@@ -124,7 +126,7 @@ dune-discord-bot/
 ├── scripts/
 │   └── run_bot.py                 # Entry point
 │
-├── tests/                         # Test suite (58 tests)
+├── tests/                         # Test suite (80 tests)
 │   ├── test_config.py
 │   ├── test_dune_client.py
 │   ├── test_formatters.py
@@ -160,6 +162,7 @@ dune-discord-bot/
 | `SCHEDULED_QUERY_ID` | No* | Query ID to execute automatically (required for scheduled mode) |
 | `SCHEDULED_EXECUTION_TIME` | No* | Local time in HH:MM format (24-hour, e.g., "14:30") (required for scheduled mode) |
 | `DISCORD_CHANNEL_ID` | No* | Discord channel ID to post scheduled results to (required for scheduled mode) |
+| `ALCX_SUMS_QUERY_ID` | No | Query ID for 24h ALCX buy/sell totals (displayed after scheduled embeds) |
 
 \* Required only if using scheduled execution mode
 
@@ -226,7 +229,8 @@ uv pip install -r requirements.txt
 3. Bot waits until execution time
 4. At scheduled time, bot executes the query automatically
 5. Results are formatted and posted to the configured Discord channel
-6. Process repeats every 24 hours
+6. If `ALCX_SUMS_QUERY_ID` is configured, executes the sums query and displays 24h totals (ALCX Bought USD, ALCX Sold USD)
+7. Process repeats every 24 hours
 
 ---
 
