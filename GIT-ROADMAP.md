@@ -99,14 +99,14 @@ Create the basic Discord bot with a working `/ping`.
 # 6. `feature/06-dune-command-handler`
 
 ### Goal
-Implement generic `/dune <query>` command.
+Implement query command handlers for Dune Analytics integration.
 
 ### Commits
 1. `feat: add dune_queries command module`  
 2. `feat: implement lookup from dune_queries.yaml`  
 3. `feat: integrate DuneClient into command handler`  
 4. `feat: add graceful handling of unknown queries`  
-5. `feat: add /dune help command`  
+5. `feat: add query help functionality`  
 6. `test: add dune command mapping tests`  
 
 ---
@@ -132,7 +132,7 @@ Add pretty embeds for tables and summaries.
 ### Commits
 1. `feat: add discord_embeds formatter`  
 2. `feat: implement basic table formatting`  
-3. `feat: integrate formatter into /dune command`  
+3. `feat: integrate formatter into query execution`  
 4. `feat: add error embeds`  
 5. `test: add embed formatting tests`  
 
@@ -183,8 +183,8 @@ Improve documentation.
 Add optional polish and UX improvements.
 
 ### Commits
-1. `feat: add autocomplete for /dune query names`  
-2. `feat: add /dune list`  
+1. `feat: add autocomplete for query names`  
+2. `feat: add query listing functionality`  
 3. `feat: prepare structure for per-guild config overrides`  
 4. `docs: update README with UX improvements`  
 

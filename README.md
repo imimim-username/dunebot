@@ -11,8 +11,7 @@ A modular Discord bot written in Python that runs Dune Analytics queries on comm
 - **Scheduled execution** — Automatically execute queries every 24 hours at a specified time
 - **24h ALCX summary** — Optional summary embed showing total USD bought/sold after scheduled query
 - **Slash commands** (`/ping`, `/status`) for health checks and status monitoring
-- **Direct query execution** by query ID — no configuration needed
-- **Beautiful embeds** with formatted field output
+- **Beautiful embeds** with formatted field output (Block Time, ALCX Bought/Sold, Amount USD, Txn link)
 - **Async execution** with Discord's "thinking..." indicator for long-running queries
 - **Environment-based configuration** using `.env`
 - **Extensible architecture** for adding new commands and output formats
@@ -80,20 +79,12 @@ python -m scripts.run_bot
 | `/ping` | Health check — shows bot latency |
 | `/status` | Bot status — shows uptime, scheduled query info, and next execution time |
 
-### Operating Modes
+### Scheduled Execution
 
-The bot can operate in two modes:
-
-**1. Interactive Mode (embed branch)**
-- Use `/dune <query_id>` to execute queries on demand
-- Results are displayed as separate embeds (one per row)
-- Each embed shows specific columns as fields: blockchain, project, block_time, token_bought_symbol, token_sold_symbol, token_bought_amount, token_sold_amount, amount_usd, tx_hash
-- Configurable delay between embeds to avoid rate limits
-
-**2. Scheduled Mode (scheduled branch)**
-- Bot automatically executes a configured query every 24 hours
-- Results are posted to a specified Discord channel
-- Only `/ping` and `/status` commands are available for health monitoring
+When configured with scheduled execution settings, the bot will:
+- Automatically execute a configured query every 24 hours at a specified time
+- Post results to a specified Discord channel
+- Each result row is displayed as a separate embed with: Block Time, ALCX Bought/Sold (conditional), Amount USD, and a clickable transaction link
 - Use `/status` to check when the next execution will occur
 
 ---
@@ -108,10 +99,11 @@ dune-discord-bot/
 │   ├── config.py                  # Settings loader (env + YAML)
 │   ├── commands/
 │   │   ├── __init__.py
-│   │   └── dune_queries.py        # /dune command handlers
+│   │   └── dune_queries.py        # Query command handlers
 │   ├── services/
 │   │   ├── __init__.py
-│   │   └── dune_client.py         # Dune SDK wrapper
+│   │   ├── dune_client.py         # Dune SDK wrapper
+│   │   └── scheduler.py           # Scheduled query runner
 │   ├── formatters/
 │   │   ├── __init__.py
 │   │   └── discord_embeds.py      # Result → Discord embed formatting
@@ -126,11 +118,12 @@ dune-discord-bot/
 ├── scripts/
 │   └── run_bot.py                 # Entry point
 │
-├── tests/                         # Test suite (80 tests)
+├── tests/                         # Test suite (118 tests)
 │   ├── test_config.py
 │   ├── test_dune_client.py
 │   ├── test_formatters.py
-│   └── test_logging.py
+│   ├── test_logging.py
+│   └── test_scheduler.py
 │
 ├── .env.example                   # Environment template
 ├── requirements.txt               # Python dependencies
@@ -178,7 +171,7 @@ queries:
     result_type: "table"
 ```
 
-*(Future feature: `/dune tvl` command support)*
+*(Future feature: query name aliases)*
 
 ---
 
@@ -213,30 +206,23 @@ uv pip install -r requirements.txt
 
 ## How It Works
 
-### Interactive Mode (embed branch)
-
-1. User runs `/dune 1234567`
-2. Bot defers response (shows "thinking...")
-3. `DuneClient` executes query via official SDK
-4. Results formatted into multiple Discord embeds (one per row)
-5. Each row embed displays specific columns as fields
-6. Bot sends embeds sequentially with configurable delay between them
-
-### Scheduled Mode (scheduled branch)
+### Scheduled Query Execution
 
 1. Bot starts and reads scheduled configuration from `.env`
 2. Scheduler calculates next execution time based on `SCHEDULED_EXECUTION_TIME`
 3. Bot waits until execution time
 4. At scheduled time, bot executes the query automatically
-5. Results are formatted and posted to the configured Discord channel
-6. If `ALCX_SUMS_QUERY_ID` is configured, executes the sums query and displays 24h totals (ALCX Bought USD, ALCX Sold USD)
-7. Process repeats every 24 hours
+5. Results are formatted into multiple Discord embeds (one per row)
+6. Each embed displays: Block Time, ALCX Bought/Sold (conditional), Amount USD, and Txn link
+7. Embeds are posted to the configured Discord channel with delay between each
+8. If `ALCX_SUMS_QUERY_ID` is configured, executes the sums query and displays 24h totals (ALCX Bought USD, ALCX Sold USD)
+9. Process repeats every 24 hours
 
 ---
 
 ## Roadmap
 
-- [x] **Phase 1:** Core MVP — `/dune <query_id>` execution
+- [x] **Phase 1:** Core MVP — Dune query execution
 - [x] **Phase 2:** Per-row embeds with rate limiting
 - [x] **Phase 3:** Scheduled query execution
 - [ ] **Phase 4:** UX enhancements — autocomplete, query parameters
