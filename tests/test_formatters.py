@@ -569,6 +569,14 @@ class TestFormatDiscordTimestamp:
         assert result.startswith("<t:")
         assert result.endswith(":f>")
     
+    def test_dune_utc_format(self):
+        """Test Dune's actual datetime format with ' UTC' suffix."""
+        result = _format_discord_timestamp("2025-12-04 21:58:11.000 UTC")
+        assert result.startswith("<t:")
+        assert result.endswith(":f>")
+        # Verify the unix timestamp is correct (2025-12-04 21:58:11 UTC)
+        assert "1764885491" in result
+    
     def test_datetime_object(self):
         """Test datetime object input."""
         dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
