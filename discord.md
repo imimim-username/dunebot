@@ -27,7 +27,7 @@ This guide walks you through setting up a Discord bot application and configurin
 3. Under **"Token"**, click **"Reset Token"** or **"Copy"**
    - ⚠️ **IMPORTANT**: Keep this token secret! Never commit it to version control.
    - If you accidentally share it, click "Reset Token" immediately
-4. Copy the token and save it temporarily (you'll need it for Step 6)
+4. Copy the token and save it temporarily (you'll need it for Step 8)
 
 ---
 
@@ -82,7 +82,7 @@ If you plan to use scheduled query execution, you'll need the channel ID where r
 
 1. Right-click on the Discord channel where you want results posted
 2. Click **"Copy Channel ID"**
-3. Save this ID for Step 7
+3. Save this ID for Step 8
 
 ## Step 7: Get Your Server ID (Optional, but Recommended)
 
@@ -98,7 +98,7 @@ Setting a Server ID enables instant command syncing during development (otherwis
 
 1. Right-click on your Discord server's name or icon
 2. Click **"Copy Server ID"**
-3. Save this ID for Step 7
+3. Save this ID for Step 8
 
 ---
 
@@ -119,7 +119,7 @@ Setting a Server ID enables instant command syncing during development (otherwis
    # Required: Paste your bot token from Step 2
    DISCORD_BOT_TOKEN=paste-your-bot-token-here
 
-   # Optional: Paste your server ID from Step 6 (recommended for development)
+   # Optional: Paste your server ID from Step 7 (recommended for development)
    DISCORD_GUILD_ID=paste-your-server-id-here
 
    # Required: Your Dune API key
@@ -181,9 +181,7 @@ If it works, check the bot status:
 
 This will show you the bot's current status and scheduled query information (if configured).
 
-**Note:** The bot behavior depends on which branch you're using:
-- **embed branch**: Use `/dune <query_id>` to execute queries interactively
-- **scheduled branch**: Bot runs queries automatically on a schedule; only `/ping` and `/status` commands are available
+**Note:** When scheduled execution is configured, the bot runs queries automatically on a schedule. Use `/ping` and `/status` commands for health monitoring.
 
 ---
 
@@ -242,9 +240,9 @@ This will show you the bot's current status and scheduled query information (if 
 
 Once your bot is running, you can:
 
-- Execute Dune queries with `/dune <query_id>`
-- Get cached results with `/dune_latest <query_id>`
 - Check bot health with `/ping`
+- View bot status and scheduled query info with `/status`
+- Configure scheduled query execution in your `.env` file
 
 For more information, see the [README.md](README.md) file.
 
