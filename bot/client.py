@@ -93,6 +93,7 @@ class DuneBot(commands.Bot):
                 execution_time=self.settings.scheduled_execution_time,
                 channel_id=self.settings.discord_channel_id,
                 embed_delay_seconds=self.settings.embed_delay_seconds,
+                sums_query_id=self.settings.alcx_sums_query_id,
             )
             self._scheduler.start()
             logger.info("Scheduled query runner started")

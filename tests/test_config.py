@@ -94,6 +94,28 @@ class TestSettings:
         assert settings.scheduled_execution_time == "14:30"
         assert settings.discord_channel_id == 999999
     
+    def test_from_env_alcx_sums_query_id(self, monkeypatch):
+        """Test loading ALCX sums query ID."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.setenv("ALCX_SUMS_QUERY_ID", "98765")
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
+        
+        assert settings.alcx_sums_query_id == 98765
+    
+    def test_from_env_alcx_sums_query_id_not_set(self, monkeypatch):
+        """Test that ALCX sums query ID defaults to None if not set."""
+        monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")
+        monkeypatch.setenv("DUNE_API_KEY", "test-key")
+        monkeypatch.delenv("ALCX_SUMS_QUERY_ID", raising=False)
+        
+        # Use a non-existent .env file path to avoid loading real .env
+        settings = Settings.from_env("/nonexistent/.env")
+        
+        assert settings.alcx_sums_query_id is None
+    
     def test_from_env_scheduled_time_invalid_format(self, monkeypatch):
         """Test that invalid time format raises ValueError."""
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")

@@ -235,6 +235,78 @@ def format_loading_embed(query_id: int) -> discord.Embed:
     )
 
 
+def format_alcx_sums_embed(
+    result: QueryResult,
+    title: str = "ALCX 24h Summary",
+    color: discord.Color | None = None,
+) -> discord.Embed:
+    """Format ALCX 24-hour buy/sell totals as a Discord embed.
+    
+    Args:
+        result: The QueryResult from Dune containing one row with
+                alcx_bought_usd and alcx_sold_usd columns.
+        title: Title for the embed (default: "ALCX 24h Summary").
+        color: Optional color for the embed.
+        
+    Returns:
+        A Discord Embed displaying the 24-hour ALCX totals.
+    """
+    if color is None:
+        color = discord.Color.from_rgb(88, 101, 242)  # Discord blurple
+    
+    embed = discord.Embed(
+        title=_truncate(title, MAX_EMBED_TITLE),
+        color=color,
+        timestamp=datetime.now(timezone.utc),
+    )
+    
+    if result.is_empty:
+        embed.description = "*No data available*"
+        embed.set_footer(text=f"Query ID: {result.query_id}")
+        return embed
+    
+    # Get the first (and only) row
+    row = result.rows[0]
+    
+    # Format bought USD
+    bought_usd = row.get("alcx_bought_usd")
+    if bought_usd is not None:
+        try:
+            bought_value = float(bought_usd)
+            bought_display = f"${bought_value:,.2f}"
+        except (TypeError, ValueError):
+            bought_display = "N/A"
+    else:
+        bought_display = "N/A"
+    
+    embed.add_field(
+        name="ALCX Bought (USD)",
+        value=bought_display,
+        inline=True,
+    )
+    
+    # Format sold USD
+    sold_usd = row.get("alcx_sold_usd")
+    if sold_usd is not None:
+        try:
+            sold_value = float(sold_usd)
+            sold_display = f"${sold_value:,.2f}"
+        except (TypeError, ValueError):
+            sold_display = "N/A"
+    else:
+        sold_display = "N/A"
+    
+    embed.add_field(
+        name="ALCX Sold (USD)",
+        value=sold_display,
+        inline=True,
+    )
+    
+    embed.set_footer(text=f"Query ID: {result.query_id} | 24h Totals")
+    
+    return embed
+
+
 def format_query_result_rows(
     result: QueryResult,
     title: str = "ALCX Dex Swap",

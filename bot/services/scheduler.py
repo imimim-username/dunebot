@@ -34,6 +34,7 @@ class ScheduledQueryRunner:
         execution_time: str,  # HH:MM format
         channel_id: int,
         embed_delay_seconds: int = 10,
+        sums_query_id: int | None = None,
     ):
         """Initialize the scheduled query runner.
         
@@ -44,6 +45,7 @@ class ScheduledQueryRunner:
             execution_time: Local time to execute (HH:MM format, 24-hour).
             channel_id: Discord channel ID to post results to.
             embed_delay_seconds: Delay between sending embeds (default: 10).
+            sums_query_id: Optional query ID for 24h ALCX buy/sell totals.
         """
         self.dune_client = dune_client
         self.bot = bot
@@ -51,6 +53,7 @@ class ScheduledQueryRunner:
         self.execution_time = execution_time
         self.channel_id = channel_id
         self.embed_delay_seconds = embed_delay_seconds
+        self.sums_query_id = sums_query_id
         
         # Parse execution time
         time_parts = execution_time.split(":")
@@ -200,6 +203,10 @@ class ScheduledQueryRunner:
                 f"({len(embeds)} embeds)"
             )
             
+            # Execute ALCX sums query if configured
+            if self.sums_query_id:
+                await self._execute_sums_query(channel)
+            
         except Exception as e:
             logger.exception(f"Error executing scheduled query {self.query_id}: {e}")
             
@@ -217,6 +224,45 @@ class ScheduledQueryRunner:
                     await channel.send(embed=error_embed)
             except Exception as send_error:
                 logger.error(f"Failed to send error embed: {send_error}")
+    
+    async def _execute_sums_query(self, channel) -> None:
+        """Execute the ALCX sums query and post results.
+        
+        Args:
+            channel: The Discord channel to post results to.
+        """
+        logger.info(f"Executing ALCX sums query {self.sums_query_id}")
+        
+        try:
+            # Execute the sums query
+            result = await self.dune_client.execute_query_async(
+                query_id=self.sums_query_id,
+                timeout=60,
+            )
+            
+            # Format and send the sums embed
+            from bot.formatters.discord_embeds import format_alcx_sums_embed
+            
+            sums_embed = format_alcx_sums_embed(result)
+            await channel.send(embed=sums_embed)
+            
+            logger.info(f"ALCX sums query {self.sums_query_id} completed")
+            
+        except Exception as e:
+            logger.exception(f"Error executing ALCX sums query {self.sums_query_id}: {e}")
+            
+            # Send error embed
+            try:
+                from bot.formatters.discord_embeds import format_error_embed
+                
+                error_embed = format_error_embed(
+                    f"Error executing ALCX sums query: {str(e)}",
+                    query_id=self.sums_query_id,
+                    title="ALCX Sums Query Error",
+                )
+                await channel.send(embed=error_embed)
+            except Exception as send_error:
+                logger.error(f"Failed to send sums error embed: {send_error}")
 
 
 
